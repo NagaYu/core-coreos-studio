@@ -52,7 +52,7 @@ backend to pay for, scale, or trust.
 
 ```bash
 # 1. Clone
-git clone https://github.com/your-name/core-coreos-studio.git
+git clone https://github.com/NagaYu/core-coreos-studio.git
 cd core-coreos-studio
 
 # 2. Create an isolated environment & install the 3 tiny server deps
