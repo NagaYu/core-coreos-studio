@@ -37,7 +37,7 @@ backend to pay for, scale, or trust.
 | | |
 |---|---|
 | 🖼️ **Vision · Classify** | Image classification with a Vision Transformer (ViT). Drop a photo, get ranked labels with confidence — in milliseconds. |
-| 📝 **Vision · Describe** | Image captioning (ViT-GPT2). One tap switches the Vision card from labels to a natural-language description of the scene. |
+| 📝 **Vision · Describe** | Image captioning (BLIP). One tap switches the Vision card from labels to a natural-language description of the scene. |
 | 🎙️ **Audio** | Speech-to-text with Whisper. Multilingual, automatic language detection, long-file chunking. |
 | ✈️ **Air-gap mode** | Run [`fetch_models.py`](fetch_models.py) once to mirror the weights locally — the app then makes **zero external requests**, ever. |
 | ⚡ **WebGPU first** | Runs on the Apple GPU via WebGPU; transparently falls back to highly optimized WASM SIMD. |
@@ -153,12 +153,12 @@ in the `MODELS` map. Swap in any ONNX-exported model from the Hugging Face hub:
 ```js
 const MODELS = {
   image:        { task: 'image-classification',         id: 'Xenova/vit-base-patch16-224',     ... },
-  imageCaption: { task: 'image-to-text',                id: 'Xenova/vit-gpt2-image-captioning', ... },
-  audio:        { task: 'automatic-speech-recognition', id: 'Xenova/whisper-tiny',             ... },
+  imageCaption: { task: 'image-to-text',                id: 'Xenova/blip-image-captioning-base', ... },
+  audio:        { task: 'automatic-speech-recognition', id: 'Xenova/whisper-base',              ... },
 };
 ```
 
-Want higher accuracy? Try `Xenova/whisper-base` or a larger ViT — the engine
+Want even higher accuracy? Try `Xenova/whisper-small` or a larger ViT — the engine
 auto-selects precision and backend for whatever you choose. If you swap models
 **and** use air-gap mode, mirror the new ids by editing the `REPOS` list in
 [`fetch_models.py`](fetch_models.py).

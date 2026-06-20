@@ -59,14 +59,18 @@ const MODELS = Object.freeze({
   },
   imageCaption: {
     task: 'image-to-text',
-    id: 'Xenova/vit-gpt2-image-captioning',
+    // BLIP produces markedly richer, more accurate captions than ViT-GPT2 while
+    // keeping the exact same image-to-text pipeline interface.
+    id: 'Xenova/blip-image-captioning-base',
     // Captioning tolerates a slightly larger canvas; still bounded for memory.
     maxEdge: 768,
     maxNewTokens: 52,
   },
   audio: {
     task: 'automatic-speech-recognition',
-    id: 'Xenova/whisper-tiny', // multilingual, auto language detection
+    // whisper-base is meaningfully more accurate than whisper-tiny, still small
+    // enough to run comfortably on-device. Multilingual, auto language detect.
+    id: 'Xenova/whisper-base',
     sampleRate: 16000, // Whisper is hard-wired to 16 kHz mono.
   },
 });

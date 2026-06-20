@@ -33,8 +33,8 @@ from pathlib import Path
 # Repos the engine loads (image classifier, image captioner, speech model).
 REPOS = [
     "Xenova/vit-base-patch16-224",
-    "Xenova/vit-gpt2-image-captioning",
-    "Xenova/whisper-tiny",
+    "Xenova/blip-image-captioning-base",
+    "Xenova/whisper-base",
 ]
 
 HF_API = "https://huggingface.co/api/models/{repo}"
