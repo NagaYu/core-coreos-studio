@@ -142,6 +142,10 @@ Unified Memory is shared and finite, so the engine is fanatical about it:
   a new one per drop — the GPU texture cache stays calm.
 - **Precision tuning.** `fp16` on WebGPU, quantized `q8` on WASM, to shrink both the
   download and the resident footprint.
+- **Resident-model cap (LRU).** At most **2** model graphs stay in memory at once;
+  loading a third evicts the least-recently-used one and calls `dispose()` to free
+  its tensors immediately. Pass `maxResident: 1` to `studio.boot()` for the absolute
+  minimum footprint (each modality switch then reloads from cache).
 
 ---
 
@@ -154,7 +158,7 @@ in the `MODELS` map. Swap in any ONNX-exported model from the Hugging Face hub:
 const MODELS = {
   image:        { task: 'image-classification',         id: 'Xenova/vit-base-patch16-224',     ... },
   imageCaption: { task: 'image-to-text',                id: 'Xenova/blip-image-captioning-base', ... },
-  audio:        { task: 'automatic-speech-recognition', id: 'Xenova/whisper-small',             ... },
+  audio:        { task: 'automatic-speech-recognition', id: 'Xenova/whisper-base',              ... },
 };
 ```
 

@@ -68,9 +68,9 @@ const MODELS = Object.freeze({
   },
   audio: {
     task: 'automatic-speech-recognition',
-    // whisper-small is the most accurate tier that still runs comfortably
-    // on-device. Multilingual, automatic language detection.
-    id: 'Xenova/whisper-small',
+    // whisper-base is the accuracy/memory sweet spot: clearly better than tiny,
+    // far lighter than small. Multilingual, automatic language detection.
+    id: 'Xenova/whisper-base',
     sampleRate: 16000, // Whisper is hard-wired to 16 kHz mono.
   },
 });
@@ -108,6 +108,9 @@ function configure(cfg) {
     env.allowLocalModels = false;
     env.allowRemoteModels = true;
   }
+  if (Number.isInteger(cfg.maxResident) && cfg.maxResident >= 1) {
+    MAX_RESIDENT_PIPELINES = cfg.maxResident;
+  }
 }
 
 // SharedArrayBuffer (and therefore multi-threaded WASM) is only available when
@@ -134,23 +137,44 @@ async function detectBackend() {
 }
 
 let BACKEND = null;            // 'webgpu' | 'wasm'
-const pipelineCache = new Map(); // task-id -> loaded pipeline (one per modality)
+const pipelineCache = new Map(); // task-id -> loaded pipeline (insertion = LRU order)
+
+// Cap how many model graphs may stay resident at once. The studio has three
+// models (ViT, BLIP, Whisper); without a cap, using all three would pin them
+// all in Unified Memory simultaneously. Keeping at most 2 bounds peak RAM while
+// still making the common Classify⇄Describe toggle instant. Set to 1 for the
+// absolute minimum footprint (every modality switch reloads from cache).
+let MAX_RESIDENT_PIPELINES = 2;
+
+// Dispose the least-recently-used pipelines until we're within the cap. Frees
+// the model's GPU/WASM tensors immediately — the core low-memory mechanism.
+async function evictPipelines(keepKey) {
+  while (pipelineCache.size > MAX_RESIDENT_PIPELINES) {
+    const oldest = [...pipelineCache.keys()].find((k) => k !== keepKey);
+    if (oldest === undefined) break;
+    const victim = pipelineCache.get(oldest);
+    pipelineCache.delete(oldest);
+    try { await victim?.dispose?.(); } catch { /* best-effort */ }
+    self.postMessage({ type: 'log', level: 'info',
+      message: 'Evicted "' + oldest + '" model to keep memory low.' });
+  }
+}
 
 // Per-model precision tuning. On WebGPU we lean on fp16/fp32; on WASM we use
 // quantized weights (q8) to shrink the download and the resident footprint —
 // the Unified Memory pool is precious.
 function dtypeFor(taskKey, backend) {
   if (taskKey === 'audio') {
-    // fp16 on WebGPU keeps the larger whisper-small resident footprint roughly
-    // halved versus fp32 with no meaningful accuracy loss; q8 on the WASM path.
+    // fp16 on WebGPU roughly halves the resident footprint versus fp32 with no
+    // meaningful accuracy loss; q8 (quantized) on the WASM path for minimal RAM.
     return backend === 'webgpu'
       ? { encoder_model: 'fp16', decoder_model_merged: 'fp16' }
       : { encoder_model: 'q8',   decoder_model_merged: 'q8' };
   }
   if (taskKey === 'imageCaption') {
-    // Encoder-decoder captioner. fp32 on GPU for stability, q8 on CPU to keep
-    // the resident footprint small in Unified Memory.
-    return backend === 'webgpu' ? 'fp32' : 'q8';
+    // BLIP captioner. fp16 on GPU (half the footprint of fp32, no real quality
+    // loss), q8 on CPU — keeps Unified Memory pressure low.
+    return backend === 'webgpu' ? 'fp16' : 'q8';
   }
   // image classification
   return backend === 'webgpu' ? 'fp16' : 'q8';
@@ -158,7 +182,13 @@ function dtypeFor(taskKey, backend) {
 
 async function getPipeline(taskKey, model, id) {
   const cacheKey = taskKey;
-  if (pipelineCache.has(cacheKey)) return pipelineCache.get(cacheKey);
+  if (pipelineCache.has(cacheKey)) {
+    // Refresh LRU recency: re-insert so this becomes the most-recently-used.
+    const existing = pipelineCache.get(cacheKey);
+    pipelineCache.delete(cacheKey);
+    pipelineCache.set(cacheKey, existing);
+    return existing;
+  }
 
   if (!BACKEND) BACKEND = await detectBackend();
 
@@ -195,6 +225,7 @@ async function getPipeline(taskKey, model, id) {
   }
 
   pipelineCache.set(cacheKey, pipe);
+  await evictPipelines(cacheKey); // enforce the resident-model cap
   return pipe;
 }
 
@@ -324,9 +355,10 @@ export class CoreStudio {
    * Boot the engine: spin up the worker, decide online/offline weight source,
    * and detect the best backend.
    * @param {{onBackend?:Function, onLog?:Function, offline?:boolean,
-   *          localPath?:string}} [handlers]
+   *          localPath?:string, maxResident?:number}} [handlers]
    *   `offline` forces same-origin weights; if omitted it is auto-detected by
-   *   probing for /static/models/manifest.json.
+   *   probing for /static/models/manifest.json. `maxResident` caps how many
+   *   model graphs may stay in memory at once (default 2; set 1 for minimum RAM).
    */
   async boot(handlers = {}) {
     if (this._worker) return; // idempotent
@@ -357,7 +389,7 @@ export class CoreStudio {
     // Hand the weight-source configuration to the worker before anything runs.
     this._worker.postMessage({
       type: 'config',
-      config: { offline: this._offline, localPath },
+      config: { offline: this._offline, localPath, maxResident: handlers.maxResident },
     });
     this._onLog('info', this._offline
       ? `Offline mode: weights served locally from ${localPath}`
