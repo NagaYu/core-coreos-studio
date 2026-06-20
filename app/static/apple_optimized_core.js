@@ -68,9 +68,9 @@ const MODELS = Object.freeze({
   },
   audio: {
     task: 'automatic-speech-recognition',
-    // whisper-base is meaningfully more accurate than whisper-tiny, still small
-    // enough to run comfortably on-device. Multilingual, auto language detect.
-    id: 'Xenova/whisper-base',
+    // whisper-small is the most accurate tier that still runs comfortably
+    // on-device. Multilingual, automatic language detection.
+    id: 'Xenova/whisper-small',
     sampleRate: 16000, // Whisper is hard-wired to 16 kHz mono.
   },
 });
@@ -141,9 +141,11 @@ const pipelineCache = new Map(); // task-id -> loaded pipeline (one per modality
 // the Unified Memory pool is precious.
 function dtypeFor(taskKey, backend) {
   if (taskKey === 'audio') {
+    // fp16 on WebGPU keeps the larger whisper-small resident footprint roughly
+    // halved versus fp32 with no meaningful accuracy loss; q8 on the WASM path.
     return backend === 'webgpu'
-      ? { encoder_model: 'fp32', decoder_model_merged: 'fp32' }
-      : { encoder_model: 'q8',  decoder_model_merged: 'q8' };
+      ? { encoder_model: 'fp16', decoder_model_merged: 'fp16' }
+      : { encoder_model: 'q8',   decoder_model_merged: 'q8' };
   }
   if (taskKey === 'imageCaption') {
     // Encoder-decoder captioner. fp32 on GPU for stability, q8 on CPU to keep

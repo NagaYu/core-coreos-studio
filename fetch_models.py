@@ -34,7 +34,7 @@ from pathlib import Path
 REPOS = [
     "Xenova/vit-base-patch16-224",
     "Xenova/blip-image-captioning-base",
-    "Xenova/whisper-base",
+    "Xenova/whisper-small",
 ]
 
 HF_API = "https://huggingface.co/api/models/{repo}"

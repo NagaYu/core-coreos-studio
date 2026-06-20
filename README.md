@@ -154,11 +154,11 @@ in the `MODELS` map. Swap in any ONNX-exported model from the Hugging Face hub:
 const MODELS = {
   image:        { task: 'image-classification',         id: 'Xenova/vit-base-patch16-224',     ... },
   imageCaption: { task: 'image-to-text',                id: 'Xenova/blip-image-captioning-base', ... },
-  audio:        { task: 'automatic-speech-recognition', id: 'Xenova/whisper-base',              ... },
+  audio:        { task: 'automatic-speech-recognition', id: 'Xenova/whisper-small',             ... },
 };
 ```
 
-Want even higher accuracy? Try `Xenova/whisper-small` or a larger ViT — the engine
+Want to trade speed for more accuracy? Try `Xenova/whisper-medium` or a larger ViT — the engine
 auto-selects precision and backend for whatever you choose. If you swap models
 **and** use air-gap mode, mirror the new ids by editing the `REPOS` list in
 [`fetch_models.py`](fetch_models.py).
