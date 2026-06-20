@@ -1,0 +1,15 @@
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# Locally mirrored model weights (downloaded via fetch_models.py — never commit;
+# they are large and fetched on demand).
+app/static/models/
+
+# OS / editor
+.DS_Store
+*.swp
+.idea/
+.vscode/
