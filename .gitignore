@@ -13,3 +13,6 @@ app/static/models/
 *.swp
 .idea/
 .vscode/
+
+# Local Claude Code preview config (machine-specific paths)
+.claude/
